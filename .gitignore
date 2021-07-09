@@ -415,6 +415,8 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+*.tif
+
 # JetBrains Rider
 .idea/
 *.sln.iml
