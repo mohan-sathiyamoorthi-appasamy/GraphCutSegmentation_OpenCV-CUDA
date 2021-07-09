@@ -1,0 +1,110 @@
+ vector<int>invalidImage(72 * 202, 0);
+    for (int i = 0; i < invalidIndices.size(); i++)
+    {    
+         
+        invalidImage.at(invalidIndices[i]) = 1;
+    }
+   
+    Mat invalidImage_Mat(202, 72, CV_32S, Scalar(0));
+    memcpy(invalidImage_Mat.data, invalidImage.data(), 72 * 202 * sizeof(int));
+
+    invalidImage_Mat = invalidImage_Mat.t();
+    cout << invalidImage_Mat << endl;
+    //loop 
+    for (int i = 0; i < 72; i++)
+    {
+        vector<int>nonZero;
+        //Access Row wise
+        Mat Image = invalidImage_Mat.row(i);
+        //Invert it
+        Image = 1 - Image;
+        Image.convertTo(Image, CV_8U);
+        //Find locations 
+        vector<Point>locations;
+        findNonZero(Image, locations);
+        int topIndex = locations[0].x;
+       
+        //Access first element 
+        int end = locations.size();
+        int bottomIndex = locations[end - 1].x;
+
+        if (topIndex != NULL)
+        {
+            topLayer.at<int>(i) = ((topLayer.at<int>(i) > topIndex) ? topLayer.at<int>(i) : topIndex);
+            bottomLayer.at<int>(i) = ((bottomLayer.at<int>(i) > bottomIndex) ? bottomLayer.at<int>(i) : bottomIndex);
+        }
+
+    }
+
+
+    //Get the indices of all pixels in between the two regions
+    Mat regionImage(1, 202 * 72, CV_32S, Scalar(0));
+    vector<int>yRegion;
+
+
+    for (int iCol = 0; iCol < 72; iCol++)
+    {
+
+        //Close any vertical gaps that there may be in the region
+        if (iCol < 72)
+        {
+            if (topLayer.at<int>(iCol) > bottomLayer.at<int>(iCol + 1))
+            {
+                topLayer.at<int>(iCol) = topLayer.at<int>(iCol + 1);
+                bottomLayer.at<int>(iCol + 1) = bottomLayer.at<int>(iCol);
+            }
+            else if (bottomLayer.at<int>(iCol) < topLayer.at<int>(iCol + 1))
+            {
+                bottomLayer.at<int>(iCol) = bottomLayer.at<int>(iCol + 1);
+                topLayer.at<int>(iCol + 1) = topLayer.at<int>(iCol);
+            }
+        }
+         
+
+        //Get the indices in the region
+        for (int i = topLayer.at<int>(iCol); i < bottomLayer.at<int>(iCol); i++)
+        {
+            yRegion.push_back(i);
+           
+        }
+     
+
+        Mat ones(1, yRegion.size(), CV_32S, Scalar(1));
+
+
+        Mat value = iCol * ones;
+
+        float indices;
+        for (int i = 0; i < 202; i++)
+        {
+            indices = sub2ind(202, yRegion[i], value.at<int>(i), 72);
+          
+            if (isfinite(indices))
+            {
+                regionImage.at<int>(indices) = 1;
+                //cout << regionImage.at<int>(indices)  << endl;
+            }
+            else
+            {
+                regionImage.at<int>(iCol) = 1;
+            }
+        }
+
+    }
+    //Take out any region indices that were specified as invalid
+    Mat invalidImageResult;
+    bitwise_and(invalidImage, regionImage, invalidImageResult);
+
+    //Remove Invalid indices from the region
+    for (int i = 0; i < invalidIndices.size(); i++)
+    {
+         
+        regionImage.at<int>(invalidIndices[i]) = 0;
+    }
+
+    //Get the Indices
+    regionImage.convertTo(regionImage, CV_8U);
+    vector<Point>regionIndices;
+    findNonZero(regionImage, regionIndices);
+     
+    return regionIndices;
